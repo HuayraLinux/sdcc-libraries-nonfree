@@ -1,0 +1,5 @@
+sdcc-libraries-nonfree (3.1.0-1.1) unstable; urgency=low
+
+  *  sdcc with non-free libraries
+
+ -- Miguel Angel Garcia <miguel.garcia@gmail.com>  Tue, 04 Feb 2014 13:12:56 -0300

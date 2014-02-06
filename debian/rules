@@ -1,0 +1,177 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE=1
+
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+export HOME=$(CURDIR)/build
+
+ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -g -O0
+	export STRIP=true
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+	INSTALL_PROGRAM += -s
+endif
+
+clean:
+	dh_testdir
+	dh_testroot
+	# Clean up files that Makefile should have cleaned
+	[ ! -f Makefile ] || $(MAKE) distclean
+	rm -f device/lib/pic14/config.h
+	rm -f device/lib/pic14/config.log
+	rm -f device/lib/pic14/stamp-h1
+	rm -f device/lib/r2k/*.asm
+	rm -f device/lib/z180/*.asm
+	rm -f sim/ucsim/cmd.src/cmdlex.cc
+	rm -f sim/ucsim/cmd.src/cmdpars.cc
+	rm -f src/pic14/Makefile.dep
+	rm -f src/pic14/peeph.rul
+	rm -rf $(CURDIR)/build
+	rm -f custom.h
+	rm -f sim/ucsim/custom.h
+	rm -f support/regression/ports/host/spec.mk
+	rm -f support/cpp/configargs.h,.log
+	rm -f support/cpp/config.log
+	rm -f support/cpp/config.status
+	rm -f sim/ucsim/config.guess
+	rm -f sim/ucsim/config.sub
+	rm -f sim/ucsim/config.log
+	rm -f config.log
+	rm -f device/lib/small-stack-auto/Makefile
+	rm -f as/link/asxxxx_config.h
+	rm -f support/cpp/configargs.h
+	rm -f ports.all ports.build
+	rm -f confdefs.h
+	find -type f -name '*.o' -exec rm -f {} \;
+	find -type f -name '.stamp' -exec rm -f {} \;
+	find . -name '*.rel' -exec rm -f {} \;
+	find . -name '*.sym' -exec rm -f {} \;
+	find . -name '*.lst' -exec rm -f {} \;
+	find . -name '*.a' -exec rm -f {} \;
+	find . -name config.status -exec rm -f {} \;
+	find . -name Makefile -exec rm -f {} \;
+	rm -f sim/ucsim/cmd.src/cmdpars.hh
+	# Clean up the Debian specific files
+	rm -f config.status doc/sdccman.ps
+	rm -f *-stamp
+	rm -f install-indep install-arch
+	dh_clean
+
+configure: configure-stamp
+configure-stamp:
+	dh_testdir
+	mkdir -p $(CURDIR)/build
+	cp /usr/share/misc/config.sub sim/ucsim/config.sub
+	cp /usr/share/misc/config.guess sim/ucsim/config.guess
+	./configure \
+		--host=$(DEB_HOST_GNU_TYPE) \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--prefix=/usr
+	touch $@
+
+build: build-arch build-indep
+build-arch: build-arch-stamp
+build-arch-stamp: configure-stamp 
+	dh_testdir
+	$(MAKE)
+	touch $@
+
+build-indep: build-indep-stamp
+build-indep-stamp: configure-stamp
+	dh_testdir
+	touch $@
+
+install: install-arch install-indep
+install-indep: build
+	dh_testdir
+	dh_testroot
+	dh_installdirs 
+	dh_prep
+	$(MAKE) install prefix=$(CURDIR)/debian/tmp/usr
+	mkdir -p debian/tmp/usr/share/doc/sdcc-doc
+#	install -o root -g root -m 644 doc/sdccman.ps debian/tmp/usr/share/doc/sdcc-doc
+#	mv debian/tmp/usr/share/doc/sdcc/* debian/tmp/usr/share/doc/sdcc-doc/
+	rm -f debian/tmp/usr/share/doc/sdcc-doc/z80/combined_i186_z80_design.tex
+	rm -f debian/tmp/usr/share/doc/sdcc-doc/z80/Makefile
+	#Remove extra license file
+	rm -f $(CURDIR)/debian/tmp/usr/share/sdcc/lib/src/pic16/COPYING
+	# Remove empty dirs:
+	find $(CURDIR)/debian/tmp -type d -empty -delete
+
+	#Clean up unnecessary directories
+	rm -rf `find $(CURDIR)/debian/tmp -type d -name .deps`
+
+	dh_install -i --sourcedir=debian/tmp
+
+	# Install examples
+#	cp -a device/examples $(CURDIR)/debian/sdcc-doc/usr/share/doc/sdcc-doc
+#	rm -f $(CURDIR)/debian/sdcc-doc/usr/share/doc/sdcc-doc/examples/mcs51/simple*/go*
+	touch $@
+
+install-arch: build-arch
+	dh_testdir
+	dh_testroot
+	dh_installdirs 
+	dh_prep
+	$(MAKE) install prefix=$(CURDIR)/debian/tmp/usr
+	# Add some scripts
+	mkdir -p debian/tmp/usr/share/sdcc/scripts
+	install -o root -g root -m 755  support/scripts/inc2h-pic16.pl debian/tmp/usr/share/sdcc/scripts
+	install -o root -g root -m 755  support/scripts/inc2h.pl       debian/tmp/usr/share/sdcc/scripts
+	install -o root -g root -m 755  support/scripts/keil2sdcc.pl   debian/tmp/usr/share/sdcc/scripts
+
+	# Remove empty dirs:
+	find $(CURDIR)/debian/tmp -type d -empty -delete
+
+	#Clean up unnecessary directories
+	rm -rf `find $(CURDIR)/debian/tmp -type d -name .deps`
+
+	dh_install -a --sourcedir=debian/tmp
+
+	touch $@
+
+# Must not depend on anything. This is to be called by binary-arch/binary-indep
+# in another 'make' thread.
+binary-common:
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs ChangeLog
+	dh_installdocs
+	dh_installman
+	#dh_installexamples -psdcc-doc device/examples/* -X\.bat  
+	dh_installemacsen
+	dh_link
+	dh_lintian
+	dh_strip -Xusr/share/sdcc/lib/
+	dh_compress 
+	dh_fixperms
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+# Build architecture-independent files here.
+binary-indep: install-indep
+	$(MAKE) -f debian/rules DH_OPTIONS=-i binary-common
+
+# Build architecture-dependent files here.
+binary-arch: install-arch
+	$(MAKE) -f debian/rules DH_OPTIONS=-s binary-common
+
+get-orig-source:
+	VER=$(shell dpkg-parsechangelog | sed -rne 's,^Version: ([^-+~]+).*,\1,p'); \
+	uscan --force-download --rename --download-version=$$VER --destdir=. && (\
+	tar -xj --exclude device/non-free --exclude sim/ucsim/libltdl -f sdcc_$$VER.orig.tar.bz2 ; \
+	mv sdcc sdcc-$$VER+dfsg;\
+	tar -czf sdcc_$$VER+dfsg.orig.tar.gz sdcc-$$VER+dfsg; \
+	rm -rf sdcc-$$VER+dfsg ;\
+	rm -f sdcc_$$VER.orig.tar.bz2);
+
+binary: binary-arch binary-indep
+.PHONY: build clean binary-indep binary-arch binary install install-arch install-indep

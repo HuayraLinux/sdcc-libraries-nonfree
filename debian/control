@@ -1,0 +1,19 @@
+Source: sdcc-libraries-nonfree
+Section: non-free/electronics
+Priority: optional
+Maintainer: Miguel Angel Garcia <miguel.garcia@gmail.com>
+Build-Depends: debhelper (>=8), autoconf, autotools-dev, libtool, flex, bison, 
+ libncurses5-dev, gputils, libboost-dev
+Standards-Version: 3.9.3
+Homepage: http://sdcc.sourceforge.net
+Vcs-Git: http://github.com/huayralinux/sdcc-libraries-nonfree
+
+Package: sdcc-libraries-nonfree
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: gputils
+Description: Small Device C Compiler (non free libraries)
+ SDCC is a C compiler for the Intel MCS51 family, AVR, HC08, PIC
+ and Z80 microcontrollers.
+ .
+ This package contains the libraries without a free licence for SDCC.
